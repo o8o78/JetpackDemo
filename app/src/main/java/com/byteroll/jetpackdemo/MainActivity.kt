@@ -1,23 +1,17 @@
 package com.byteroll.jetpackdemo
 
-import android.content.Context
 import android.content.SharedPreferences
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import androidx.core.content.edit
-import androidx.lifecycle.Observer
-import androidx.lifecycle.ViewModelProvider
+import android.util.Log
+import com.byteroll.database.AppDatabase
+import com.byteroll.entity.User
 import com.byteroll.jetpackdemo.databinding.ActivityMainBinding
-import com.byteroll.jetpackdemo.observer.MyObserver
-import com.byteroll.jetpackdemo.utils.ConstUtil
-import com.byteroll.jetpackdemo.viewmodle.MainViewModel
-import com.byteroll.jetpackdemo.viewmodle.MainViewModelFactory
+import kotlin.concurrent.thread
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
-
-    private lateinit var viewModel: MainViewModel
 
     private lateinit var sp: SharedPreferences
 
@@ -30,36 +24,36 @@ class MainActivity : AppCompatActivity() {
     private fun init(){
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        sp = getPreferences(Context.MODE_PRIVATE)
-        val countReserved = sp.getInt(ConstUtil.KEY_COUNT_RESERVED, 0)
-        viewModel = ViewModelProvider(this, MainViewModelFactory(countReserved)).get(MainViewModel::class.java)
-        lifecycle.let {
-            it.addObserver(MyObserver(it))
-        }
     }
 
     private fun test(){
-        binding.increase.setOnClickListener {
-            viewModel.plusOne()
+        val userDao = AppDatabase.getDatabase(this).userDao()
+        val user1 = User("Tom", "Brady", 40)
+        val user2 = User("Tom", "Hanks", 63)
+        binding.add.setOnClickListener {
+            thread {
+                user1.id = userDao.insertUser(user1)
+                user2.id = userDao.insertUser(user2)
+            }
         }
-        binding.clear.setOnClickListener {
-            viewModel.clear()
+        binding.update.setOnClickListener {
+            thread {
+                user1.age = 42
+                userDao.updateUser(user1)
+            }
         }
-        viewModel.counter.observe(this) { count->
-            binding.result.text = count.toString()
+        binding.delete.setOnClickListener {
+            thread {
+                userDao.deleteUserByLastName("Hanks")
+            }
         }
-        refreshCounter()
-    }
-
-    override fun onPause() {
-        super.onPause()
-        sp.edit {
-            putInt(ConstUtil.KEY_COUNT_RESERVED, viewModel.counter.value ?: 0)
+        binding.query.setOnClickListener {
+            thread {
+                for (user in userDao.loadAllUsers()){
+                    Log.d("MainActivity", user.toString())
+                }
+            }
         }
-    }
-
-    private fun refreshCounter(){
-        binding.result.text = viewModel.counter.toString()
     }
 
 }
